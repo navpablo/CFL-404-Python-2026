@@ -1,31 +1,30 @@
 import ccxt
 
+# 1. Capacidad de la librería y del exchange
+print("=== Explorador de Mercado CCXT ===")
+print(f"Exchanges soportados : {len(ccxt.exchanges)} plataformas")
+print(f"Ejemplos             : {', '.join(ccxt.exchanges[:6])}...\n")
+
 exchange = ccxt.binance()
+exchange.load_markets()
+
+print(f"Exchange activo      : {exchange.name} ({exchange.id})")
+print(f"Pares disponibles    : {len(exchange.symbols):,} mercados\n")
+
+# 2. Inspección limpia de los datos clave del Ticker
 symbol = 'BTC/USDT'
+ticker = exchange.fetch_ticker(symbol)
 
-# 1. Libro de órdenes (ofertas activas)
-order_book = exchange.fetch_order_book(symbol)
-mejor_compra = order_book['bids'][0][0]
-mejor_venta  = order_book['asks'][0][0]
-spread       = mejor_venta - mejor_compra
+campos_clave = {
+    'Fecha / Hora (UTC)' : ticker['datetime'],
+    'Precio Apertura'    : f"${ticker['open']:,.2f} USD",
+    'Precio Máximo 24h'  : f"${ticker['high']:,.2f} USD",
+    'Precio Mínimo 24h'  : f"${ticker['low']:,.2f} USD",
+    'Último Precio'      : f"${ticker['last']:,.2f} USD",
+    'Variación 24h'      : f"{ticker['percentage']:.2f}%",
+    'Volumen 24h (BTC)'  : f"{ticker['baseVolume']:,.2f} BTC"
+}
 
-print(f"=== Libro de Órdenes ({symbol}) ===")
-print(f"Mejor oferta de compra : ${mejor_compra:,.2f} USD")
-print(f"Mejor oferta de venta  : ${mejor_venta:,.2f} USD")
-print(f"Diferencia (Spread)    : ${spread:.2f} USD")
-
-# 2. Últimas 5 operaciones concretadas
-trades = exchange.fetch_trades(symbol, limit=5)
-
-print(f"\n=== Últimas 5 Operaciones ===")
-print(f"{'TIPO':<8} | {'CANTIDAD':<12} | {'PRECIO'}")
-print("-" * 38)
-
-for t in trades:
-    tipo = "COMPRA" if t['side'] == 'buy' else "VENTA"
-    print(f"{tipo:<8} | {t['amount']:.5f} BTC  | ${t['price']:,.2f}")
-
-# 3. Precio promedio
-promedio = sum(t['price'] for t in trades) / len(trades)
-print("-" * 38)
-print(f"Precio promedio        : ${promedio:,.2f} USD")
+print(f"=== Ficha Técnica: {symbol} ===")
+for etiqueta, valor in campos_clave.items():
+    print(f"{etiqueta:<20} : {valor}")

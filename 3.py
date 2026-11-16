@@ -1,40 +1,31 @@
 import ccxt
-import time
-from datetime import datetime
 
 exchange = ccxt.binance()
 symbol = 'BTC/USDT'
 
-# 1. Tomamos el precio actual como referencia para calcular un objetivo realista (-0.05% abajo)
-precio_inicial = exchange.fetch_ticker(symbol)['last']
-precio_objetivo = precio_inicial * 0.9995
+# 1. Libro de órdenes (ofertas activas)
+order_book = exchange.fetch_order_book(symbol)
+mejor_compra = order_book['bids'][0][0]
+mejor_venta  = order_book['asks'][0][0]
+spread       = mejor_venta - mejor_compra
 
-print(f"=== Monitor en Vivo: {symbol} ===")
-print(f"Precio inicial  : ${precio_inicial:,.2f} USD")
-print(f"Alerta si baja a: ${precio_objetivo:,.2f} USD (Ctrl+C para salir)\n")
+print(f"=== Libro de Órdenes ({symbol}) ===")
+print(f"Mejor oferta de compra : ${mejor_compra:,.2f} USD")
+print(f"Mejor oferta de venta  : ${mejor_venta:,.2f} USD")
+print(f"Diferencia (Spread)    : ${spread:.2f} USD")
 
-precio_anterior = precio_inicial
+# 2. Últimas 5 operaciones concretadas
+trades = exchange.fetch_trades(symbol, limit=5)
 
-try:
-    while True:
-        precio = exchange.fetch_ticker(symbol)['last']
-        hora = datetime.now().strftime("%H:%M:%S")
+print(f"\n=== Últimas 5 Operaciones ===")
+print(f"{'TIPO':<8} | {'CANTIDAD':<12} | {'PRECIO'}")
+print("-" * 38)
 
-        if precio > precio_anterior:
-            tendencia = "▲ SUBE"
-        elif precio < precio_anterior:
-            tendencia = "▼ BAJA"
-        else:
-            tendencia = "▬ IGUAL"
+for t in trades:
+    tipo = "COMPRA" if t['side'] == 'buy' else "VENTA"
+    print(f"{tipo:<8} | {t['amount']:.5f} BTC  | ${t['price']:,.2f}")
 
-        print(f"\r[{hora}] BTC: ${precio:,.2f} USD | {tendencia}   ", end="", flush=True)
-
-        if precio <= precio_objetivo:
-            print(f"\n\n ¡ALERTA! {symbol} bajó de ${precio_objetivo:,.2f} USD")
-            break
-
-        precio_anterior = precio
-        time.sleep(3)
-
-except KeyboardInterrupt:
-    print("\n\nMonitoreo detenido por el usuario.")
+# 3. Precio promedio
+promedio = sum(t['price'] for t in trades) / len(trades)
+print("-" * 38)
+print(f"Precio promedio        : ${promedio:,.2f} USD")

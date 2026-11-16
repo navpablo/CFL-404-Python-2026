@@ -1,30 +1,40 @@
 import ccxt
-import pandas as pd
-import matplotlib.pyplot as plt
+import time
+from datetime import datetime
 
 exchange = ccxt.binance()
+symbol = 'BTC/USDT'
 
-# Pedimos 48 velas de 1 hora para que coincida con el título (últimas 48h)
-ohlcv = exchange.fetch_ohlcv('BTC/USDT', '1h', limit=48)
+# 1. Tomamos el precio actual como referencia para calcular un objetivo realista (-0.05% abajo)
+precio_inicial = exchange.fetch_ticker(symbol)['last']
+precio_objetivo = precio_inicial * 0.9995
 
-df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+print(f"=== Monitor en Vivo: {symbol} ===")
+print(f"Precio inicial  : ${precio_inicial:,.2f} USD")
+print(f"Alerta si baja a: ${precio_objetivo:,.2f} USD (Ctrl+C para salir)\n")
 
-# Estilo oscuro y tamaño cómodo de ventana
-plt.style.use('dark_background')
-plt.figure(figsize=(10, 5))
+precio_anterior = precio_inicial
 
-# Línea principal y sombreado suave debajo
-plt.plot(df['timestamp'], df['close'], color='#00ffcc', linewidth=2, label='Precio Cierre')
-plt.fill_between(df['timestamp'], df['close'], df['close'].min(), color='#00ffcc', alpha=0.1)
+try:
+    while True:
+        precio = exchange.fetch_ticker(symbol)['last']
+        hora = datetime.now().strftime("%H:%M:%S")
 
-# Detalles visuales: título, etiquetas, cuadrícula y rotación de fechas
-plt.title("Evolución BTC/USDT (Últimas 48 horas)", fontsize=13, fontweight='bold')
-plt.xlabel("Fecha y Hora")
-plt.ylabel("Precio (USD)")
-plt.xticks(rotation=30)
-plt.grid(True, linestyle='--', alpha=0.3)
-plt.legend()
+        if precio > precio_anterior:
+            tendencia = "▲ SUBE"
+        elif precio < precio_anterior:
+            tendencia = "▼ BAJA"
+        else:
+            tendencia = "▬ IGUAL"
 
-plt.tight_layout()
-plt.show()
+        print(f"\r[{hora}] BTC: ${precio:,.2f} USD | {tendencia}   ", end="", flush=True)
+
+        if precio <= precio_objetivo:
+            print(f"\n\n ¡ALERTA! {symbol} bajó de ${precio_objetivo:,.2f} USD")
+            break
+
+        precio_anterior = precio
+        time.sleep(3)
+
+except KeyboardInterrupt:
+    print("\n\nMonitoreo detenido por el usuario.")
